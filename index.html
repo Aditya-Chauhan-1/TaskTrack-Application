@@ -1,0 +1,1593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskSphere - Agile Project Workspace</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            jira: {
+              blue: '#0052CC',
+              darkBlue: '#0747A6',
+              lightBlue: '#DEEBFF',
+              grayBg: '#F4F5F7',
+              columnBg: '#EBECF0',
+              border: '#DFE1E6'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.35);
+    }
+    .inp { width: 100%; padding: .5rem .75rem; font-size: .875rem; border: 2px solid #DFE1E6; border-radius: .375rem; color: #172B4D; transition: border-color .15s; }
+    .inp:focus { outline: none; border-color: #2563eb; }
+    .lbl { display: block; font-size: .75rem; font-weight: 600; color: #6B778C; margin-bottom: .25rem; }
+    .btn-primary { width: 100%; padding: .625rem; background: #2563eb; color: #fff; font-weight: 700; font-size: .875rem; border-radius: .375rem; display: flex; align-items: center; justify-content: center; gap: .5rem; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+    .method-tab { padding: .4rem; border-radius: .5rem; color: #5E6C84; }
+    .method-tab.active { background: #fff; color: #1d4ed8; box-shadow: 0 1px 2px rgba(0,0,0,.1); }
+    .kanban-col { min-width: 280px; max-width: 310px; }
+    .task-card { transition: transform 0.15s ease, box-shadow 0.15s ease; cursor: grab; }
+    .task-card:active { cursor: grabbing; }
+    .task-card.dragging { opacity: 0.45; transform: scale(0.98); }
+    .column-drop-zone.drag-over { background-color: #DFE1E6; border: 2px dashed #0052CC; }
+  </style>
+</head>
+<body class="bg-[#F4F5F7] text-gray-800 font-sans antialiased h-screen flex flex-col overflow-hidden">
+
+  <!-- ==================== AUTHENTICATION SCREEN (TASKSPHERE) ==================== -->
+  <div id="authScreenModal" class="fixed inset-0 z-50 bg-[#fafbfc] flex flex-col items-center justify-start overflow-y-auto pt-6 sm:pt-12 pb-10 px-4">
+    <!-- Brand Logo -->
+    <div class="mb-8 flex items-center justify-center space-x-2.5">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-blue-600 to-sky-400 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+        <i class="fa-solid fa-layer-group text-lg"></i>
+      </div>
+      <div class="flex flex-col">
+        <span class="text-2xl font-black tracking-tight bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent">TaskSphere</span>
+        <span class="text-[10px] font-bold uppercase tracking-widest text-blue-600 -mt-1">Agile Platform</span>
+      </div>
+    </div>
+
+    <div id="authBoot" class="text-sm text-gray-500 mt-10"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Checking your session...</div>
+
+    <div id="authCard" class="hidden bg-white rounded-xl shadow-xl border border-[#e1e4e8] w-full max-w-[400px] p-8 flex flex-col">
+      <div id="cfgWarning" class="hidden mb-4 text-xs bg-amber-50 border border-amber-300 text-amber-900 rounded-md p-3 leading-relaxed">
+        <b>Firebase is not configured yet.</b> Paste your web configuration into <code>FALLBACK_FIREBASE_CONFIG</code>.
+      </div>
+      <h2 id="authCardTitle" class="text-base font-bold text-center text-[#172B4D] mb-5">Log in to continue</h2>
+      <div id="authMsg" class="hidden text-xs rounded-md px-3 py-2 mb-4 leading-relaxed"></div>
+
+      <div class="auth-main grid grid-cols-2 gap-1 bg-gray-100 p-1 rounded-lg mb-5 text-xs font-semibold">
+        <button type="button" class="method-tab active" data-method="email"><i class="fa-solid fa-envelope mr-1"></i>Email</button>
+        <button type="button" class="method-tab" data-method="phone"><i class="fa-solid fa-mobile-screen mr-1"></i>Phone</button>
+      </div>
+
+      <form id="emailForm" class="space-y-3.5" novalidate>
+        <div id="nameWrap" class="hidden"><label class="lbl">Full name</label><input id="nameInput" class="inp" autocomplete="name" placeholder="Your full name"></div>
+        <div><label class="lbl">Email</label><input id="emailInput" type="email" class="inp" autocomplete="email" placeholder="you@company.com"></div>
+        <div id="pwWrap"><label class="lbl">Password</label>
+          <div class="relative"><input id="passwordInput" type="password" class="inp pr-10" autocomplete="current-password" placeholder="Min 8 characters">
+          <button type="button" id="togglePw" class="absolute right-3 top-2.5 text-gray-400 text-xs" title="Show/hide"><i class="fa-solid fa-eye"></i></button></div></div>
+        <div id="confirmWrap" class="hidden"><label class="lbl">Confirm password</label><input id="confirmInput" type="password" class="inp" autocomplete="new-password"></div>
+        <div id="loginOptionsContainer" class="flex items-center justify-between text-xs text-[#5E6C84]">
+          <label class="flex items-center gap-2 cursor-pointer select-none"><input type="checkbox" id="rememberMeCheckbox" checked class="w-4 h-4 rounded border-gray-300"> Remember me</label>
+          <a href="javascript:void(0)" id="forgotLink" class="text-blue-600 hover:underline">Forgot password?</a>
+        </div>
+        <button type="submit" id="emailSubmitBtn" class="btn-primary">Log in</button>
+      </form>
+
+      <form id="phoneForm" class="hidden space-y-3.5" novalidate>
+        <div><label class="lbl">Mobile number</label>
+          <div class="flex gap-2">
+            <select id="countryCode" class="inp !w-28 !px-2"><option value="+91">🇮🇳 +91</option><option value="+1">🇺🇸 +1</option><option value="+44">🇬🇧 +44</option><option value="+971">🇦🇪 +971</option><option value="+61">🇦🇺 +61</option><option value="+65">🇸🇬 +65</option><option value="+977">🇳🇵 +977</option><option value="+880">🇧🇩 +880</option></select>
+            <input id="phoneInput" type="tel" inputmode="numeric" class="inp" autocomplete="tel-national" placeholder="98765 43210"></div></div>
+        <p class="text-[11px] text-gray-500">We'll text you a 6-digit code. New number? An account is created automatically.</p>
+        <div id="recaptcha-container"></div>
+        <button type="submit" id="sendOtpBtn" class="btn-primary">Send OTP</button>
+      </form>
+
+      <form id="otpForm" class="hidden space-y-3.5" novalidate>
+        <p id="otpHint" class="text-xs text-gray-600 text-center"></p>
+        <input id="otpInput" maxlength="6" inputmode="numeric" autocomplete="one-time-code" class="inp text-center text-lg tracking-[0.5em]" placeholder="------">
+        <button type="submit" id="verifyOtpBtn" class="btn-primary">Verify &amp; continue</button>
+        <div class="flex justify-between text-xs text-blue-600">
+          <button type="button" id="resendOtpBtn" class="hover:underline disabled:text-gray-400 disabled:no-underline">Resend OTP</button>
+          <button type="button" id="changeNumberBtn" class="hover:underline">Change number</button></div>
+      </form>
+
+      <form id="profileForm" class="hidden space-y-3.5" novalidate>
+        <p class="text-xs text-gray-600 text-center">Your number is verified. What should your team call you?</p>
+        <div><label class="lbl">Full name</label><input id="profileName" class="inp" autocomplete="name"></div>
+        <button type="submit" id="profileBtn" class="btn-primary">Finish setup</button>
+      </form>
+
+      <div id="verifyPanel" class="hidden text-center space-y-3">
+        <div class="w-12 h-12 mx-auto rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl"><i class="fa-solid fa-envelope-circle-check"></i></div>
+        <p class="text-sm text-gray-700">We sent a verification link to<br><b id="verifyEmailText"></b></p>
+        <p class="text-xs text-gray-500">Click the link in that email. This page continues automatically once verified.</p>
+        <button type="button" id="verifiedBtn" class="btn-primary">I've verified, continue</button>
+        <div class="flex justify-between text-xs text-blue-600">
+          <button type="button" id="resendVerifyBtn" class="hover:underline">Resend email</button>
+          <button type="button" id="verifyLogoutBtn" class="hover:underline">Use another account</button></div>
+      </div>
+
+      <div class="auth-main mt-5">
+        <div class="text-center text-xs text-[#5E6C84] mb-3">Or continue with</div>
+        <button type="button" id="googleBtn" class="w-full py-2 px-3 border border-[#DFE1E6] rounded-md flex items-center justify-center gap-2.5 text-xs font-bold text-[#172B4D] hover:bg-gray-50">
+          <svg class="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3h3.86c2.26-2.09 3.68-5.17 3.68-9.09z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.26v3.09C3.26 21.3 7.36 24 12 24z"/><path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.13-1.57.38-2.29V6.61H1.26C.46 8.23 0 10.06 0 12s.46 3.77 1.26 5.39l4.01-3.1z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.7 1.26 6.61l4.01 3.1c.95-2.85 3.6-4.96 6.73-4.96z"/></svg>
+          <span>Google</span>
+        </button>
+      </div>
+
+      <div id="authFooter" class="mt-5 text-center text-xs text-blue-600 font-medium">
+        <a href="javascript:void(0)" id="switchModeLink" class="hover:underline">Create an account</a>
+      </div>
+      <p class="mt-6 pt-4 border-t border-gray-100 text-center text-[11px] text-[#6B778C]">TaskSphere: unified agile workspace for sprints and team collaboration.</p>
+    </div>
+  </div>
+
+  <!-- Top Navigation Header -->
+  <header class="bg-white border-b border-jira-border px-4 py-2 flex items-center justify-between shadow-xs flex-shrink-0 z-20">
+    <div class="flex items-center space-x-6">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-tr from-indigo-600 to-blue-600 text-white flex items-center justify-center font-bold text-base shadow-sm">
+          <i class="fa-solid fa-layer-group"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-black text-gray-900 leading-tight tracking-tight">TaskSphere</h1>
+          <p class="text-[11px] text-blue-600 font-semibold tracking-wide">Agile Workspace</p>
+        </div>
+      </div>
+
+      <nav class="hidden md:flex items-center space-x-1 text-sm font-medium text-gray-600">
+        <a href="#" class="px-3 py-1.5 rounded-md text-blue-700 bg-blue-50 font-semibold flex items-center gap-1.5 border border-blue-100">
+          <i class="fa-solid fa-table-columns"></i> Kanban Board
+        </a>
+        <button id="myTasksQuickFilter" class="px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors text-xs font-medium text-gray-700 flex items-center gap-1">
+          <i class="fa-solid fa-user-check text-blue-600"></i> Only My Tasks
+        </button>
+      </nav>
+    </div>
+
+    <!-- Right Controls -->
+    <div class="flex items-center space-x-3">
+      <button id="openCreateModalBtn" class="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold px-3.5 py-1.5 rounded-md flex items-center gap-1.5 shadow-sm transition-all transform active:scale-95">
+        <i class="fa-solid fa-plus text-xs"></i>
+        <span>Create Issue</span>
+      </button>
+
+      <div id="syncStatus" class="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+        <span id="syncText">Connecting...</span>
+      </div>
+
+      <div class="flex items-center space-x-2.5 pl-2 border-l border-gray-200">
+        <div id="currentUserAvatar" class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-sm overflow-hidden flex-shrink-0" title="Logged In">
+          U
+        </div>
+        <div class="text-left text-xs">
+          <p class="font-bold text-gray-800 leading-none" id="currentUserName">Loading...</p>
+          <p class="text-[10px] text-gray-400 font-medium mt-0.5" id="currentUserRole">Software Engineer</p>
+        </div>
+        <button id="logoutBtn" class="ml-1 text-gray-400 hover:text-red-600 p-1 rounded hover:bg-gray-100 transition-colors" title="Switch User / Logout">
+          <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Project Header & Filters Toolbar -->
+  <div class="bg-white border-b border-jira-border px-6 py-2.5 flex-shrink-0 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+    <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-2">
+        <span class="text-xs uppercase tracking-wider font-semibold text-gray-500">Project:</span>
+        <span class="text-sm font-bold text-gray-800 bg-gray-100 px-2.5 py-0.5 rounded border border-gray-200 flex items-center gap-1.5">
+          <i class="fa-solid fa-bolt-lightning text-amber-500 text-xs"></i> TSP-CORE (Sprint 1)
+        </span>
+      </div>
+
+      <div class="relative w-64">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+        <input type="text" id="searchInput" placeholder="Search tasks, ID, or keywords..." class="w-full text-xs pl-8 pr-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent bg-gray-50 focus:bg-white transition-all">
+      </div>
+    </div>
+
+    <div class="flex items-center space-x-2 overflow-x-auto pb-1 sm:pb-0">
+      <span class="text-xs text-gray-500 font-medium mr-1"><i class="fa-solid fa-filter text-gray-400 mr-1"></i>Filter by:</span>
+
+      <select id="assigneeFilter" class="text-xs bg-gray-50 border border-gray-300 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-jira-blue text-gray-700">
+        <option value="ALL">All Assignees</option>
+      </select>
+
+      <select id="priorityFilter" class="text-xs bg-gray-50 border border-gray-300 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-jira-blue text-gray-700">
+        <option value="ALL">All Priorities</option>
+        <option value="Highest">Highest</option>
+        <option value="High">High</option>
+        <option value="Medium">Medium</option>
+        <option value="Low">Low</option>
+      </select>
+
+      <button id="clearFiltersBtn" class="text-xs text-gray-500 hover:text-jira-blue px-2 py-1 rounded hover:bg-gray-100 transition-colors">
+        Clear
+      </button>
+    </div>
+  </div>
+
+  <!-- Kanban Board Main Container -->
+  <main class="flex-1 overflow-x-auto overflow-y-hidden p-4 bg-[#F4F5F7]">
+    <div class="flex items-start space-x-3.5 h-full min-w-max pb-2" id="boardColumnsContainer"></div>
+  </main>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- Create Issue Modal -->
+  <div id="createIssueModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden backdrop-blur-xs p-4">
+    <div class="bg-white rounded-lg shadow-2xl border border-gray-200 w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="px-6 py-4 border-b border-jira-border flex items-center justify-between bg-gray-50">
+        <div class="flex items-center space-x-2">
+          <span class="w-6 h-6 rounded bg-jira-blue text-white flex items-center justify-center text-xs font-bold">
+            <i class="fa-solid fa-plus"></i>
+          </span>
+          <h2 class="font-bold text-gray-900 text-base">Create New Issue / Task</h2>
+        </div>
+        <button id="closeCreateModalBtn" class="text-gray-400 hover:text-gray-600 p-1 rounded-md text-lg leading-none">&times;</button>
+      </div>
+
+      <form id="createIssueForm" class="p-6 overflow-y-auto space-y-4 flex-1 text-sm">
+        <div class="grid grid-cols-3 gap-3">
+          <div class="col-span-1">
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Issue Type <span class="text-red-500">*</span></label>
+            <select id="issueType" class="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:ring-2 focus:ring-jira-blue focus:outline-none">
+              <option value="Task">📋 Task</option>
+              <option value="Bug">🐛 Bug</option>
+              <option value="Story">📖 Story</option>
+              <option value="Improvement">⚡ Improvement</option>
+            </select>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Status Column <span class="text-red-500">*</span></label>
+            <select id="issueStatus" class="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:ring-2 focus:ring-jira-blue focus:outline-none font-medium">
+              <option value="open">Open</option>
+              <option value="in_progress">In Progress</option>
+              <option value="pending">Pending</option>
+              <option value="reopened">Reopened</option>
+              <option value="in_testing">In Testing</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Summary / Task Title <span class="text-red-500">*</span></label>
+          <input type="text" id="issueSummary" required placeholder="e.g. Implement user login API" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-jira-blue focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Description</label>
+          <textarea id="issueDescription" rows="4" placeholder="Detail the requirements, reproduction steps..." class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-jira-blue focus:outline-none"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Assignee</label>
+            <select id="issueAssignee" class="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:ring-2 focus:ring-jira-blue focus:outline-none"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Priority</label>
+            <select id="issuePriority" class="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:ring-2 focus:ring-jira-blue focus:outline-none">
+              <option value="Highest">🔥 Highest</option>
+              <option value="High" selected>⚡ High</option>
+              <option value="Medium">⚖️ Medium</option>
+              <option value="Low">🌱 Low</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Story Points / Estimate</label>
+            <input type="number" id="issuePoints" min="1" max="21" value="3" class="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:ring-2 focus:ring-jira-blue focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Due Date</label>
+            <input type="date" id="issueDueDate" class="w-full border border-gray-300 rounded px-2.5 py-1.5 focus:ring-2 focus:ring-jira-blue focus:outline-none text-gray-700">
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-gray-200 flex justify-end space-x-2">
+          <button type="button" id="cancelCreateModalBtn" class="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-md transition-colors">Cancel</button>
+          <button type="submit" id="submitCreateBtn" class="px-5 py-2 text-xs font-semibold text-white bg-jira-blue hover:bg-jira-darkBlue rounded-md shadow transition-colors flex items-center gap-1.5">
+            <i class="fa-solid fa-check"></i>
+            <span>Create</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Task Detail Drawer / Modal -->
+  <div id="detailModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-end hidden backdrop-blur-xs">
+    <div class="bg-white h-full w-full max-w-2xl shadow-2xl border-l border-gray-200 flex flex-col transform transition-transform duration-200 ease-in-out">
+      <div class="px-6 py-4 border-b border-jira-border flex items-center justify-between bg-gray-50 flex-shrink-0">
+        <div class="flex items-center space-x-3">
+          <span id="detailTypeBadge" class="text-xs px-2 py-0.5 rounded font-bold uppercase bg-blue-100 text-blue-800">Task</span>
+          <span id="detailKey" class="text-xs font-mono font-bold text-gray-500">TSP-0</span>
+          <span class="text-gray-300">|</span>
+          <span id="detailStatusPill" class="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-gray-200 text-gray-800 uppercase tracking-wide">STATUS</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button id="deleteTaskBtn" class="text-red-500 hover:text-red-700 p-1.5 rounded hover:bg-red-50 text-xs font-medium flex items-center gap-1 transition-colors" title="Delete Task">
+            <i class="fa-regular fa-trash-can"></i> Delete
+          </button>
+          <button id="closeDetailModalBtn" class="text-gray-400 hover:text-gray-700 text-2xl px-2 font-bold leading-none">&times;</button>
+        </div>
+      </div>
+
+      <div class="p-6 overflow-y-auto space-y-6 flex-1 text-sm">
+        <div>
+          <label class="text-[11px] font-bold uppercase tracking-wider text-gray-400 block mb-1">Summary</label>
+          <h2 id="detailSummary" class="text-xl font-bold text-gray-900 leading-snug"></h2>
+        </div>
+
+        <div class="bg-blue-50/60 p-3.5 rounded-lg border border-blue-100 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-bold text-jira-darkBlue">Workflow Status:</span>
+            <select id="detailStatusSelect" class="bg-white border border-blue-300 text-jira-blue font-bold text-xs rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-jira-blue shadow-xs">
+              <option value="open">⚪ Open</option>
+              <option value="in_progress">🔵 In Progress</option>
+              <option value="pending">🟠 Pending</option>
+              <option value="reopened">🟣 Reopened</option>
+              <option value="in_testing">🧪 In Testing</option>
+              <option value="completed">🟢 Completed</option>
+            </select>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-bold text-gray-600">Priority:</span>
+            <select id="detailPrioritySelect" class="bg-white border border-gray-300 text-xs font-semibold rounded-md px-2.5 py-1 focus:outline-none">
+              <option value="Highest">🔥 Highest</option>
+              <option value="High">⚡ High</option>
+              <option value="Medium">⚖️ Medium</option>
+              <option value="Low">🌱 Low</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-[11px] font-bold uppercase tracking-wider text-gray-500 block mb-1.5">Description</label>
+          <div id="detailDescriptionView" class="p-3 bg-gray-50 rounded border border-gray-200 text-gray-700 whitespace-pre-wrap min-h-[70px]"></div>
+          <div id="detailDescriptionEditContainer" class="hidden mt-2">
+            <textarea id="detailDescriptionInput" rows="4" class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-jira-blue focus:outline-none"></textarea>
+            <div class="flex justify-end space-x-2 mt-2">
+              <button id="cancelDescBtn" class="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700">Cancel</button>
+              <button id="saveDescBtn" class="text-xs px-3 py-1 rounded bg-jira-blue hover:bg-jira-darkBlue text-white font-medium">Save</button>
+            </div>
+          </div>
+          <button id="editDescBtn" class="mt-1 text-xs text-jira-blue hover:underline font-medium">
+            <i class="fa-solid fa-pen text-[10px] mr-1"></i>Edit Description
+          </button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 bg-gray-50/70 p-4 rounded-lg border border-gray-200">
+          <div>
+            <label class="text-[11px] font-semibold text-gray-500 block">Assignee</label>
+            <select id="detailAssigneeSelect" class="mt-1 w-full bg-white border border-gray-300 rounded px-2.5 py-1.5 text-xs font-medium focus:ring-2 focus:ring-jira-blue"></select>
+          </div>
+          <div>
+            <label class="text-[11px] font-semibold text-gray-500 block">Story Points</label>
+            <input type="number" id="detailPointsInput" min="1" max="21" class="mt-1 w-full bg-white border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-jira-blue">
+          </div>
+          <div>
+            <label class="text-[11px] font-semibold text-gray-500 block">Due Date</label>
+            <input type="date" id="detailDueDateInput" class="mt-1 w-full bg-white border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-jira-blue">
+          </div>
+          <div>
+            <label class="text-[11px] font-semibold text-gray-500 block">Created On</label>
+            <p id="detailCreatedDate" class="mt-1.5 text-xs text-gray-600 font-mono">-</p>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700 mb-3 flex items-center gap-1.5">
+            <i class="fa-regular fa-comments text-jira-blue"></i> Activity & Work Notes
+          </h3>
+
+          <div class="flex items-start space-x-2 mb-4">
+            <div class="w-7 h-7 rounded-full bg-jira-blue text-white flex items-center justify-center text-xs font-bold flex-shrink-0">ME</div>
+            <div class="flex-1">
+              <textarea id="newCommentInput" rows="2" placeholder="Add a comment or work update..." class="w-full text-xs border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-jira-blue focus:outline-none"></textarea>
+              <button id="addCommentBtn" class="mt-1.5 bg-jira-blue hover:bg-jira-darkBlue text-white text-xs font-semibold px-3 py-1 rounded shadow-xs transition-colors">Save Comment</button>
+            </div>
+          </div>
+
+          <div id="commentsList" class="space-y-3"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-gray-900 text-white px-4 py-2.5 rounded-lg shadow-xl text-xs flex items-center space-x-2 pointer-events-none">
+    <i id="toastIcon" class="fa-solid fa-circle-check text-green-400"></i>
+    <span id="toastMsg">Operation successful</span>
+  </div>
+
+  <!-- Confirm Modal -->
+  <div id="customConfirmModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-5 space-y-4">
+      <div class="flex items-center space-x-3 text-red-600">
+        <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+        <h3 class="font-bold text-gray-900 text-base" id="confirmTitle">Confirm Action</h3>
+      </div>
+      <p class="text-xs text-gray-600" id="confirmMessage">Are you sure you want to proceed?</p>
+      <div class="flex justify-end space-x-2 pt-2">
+        <button id="confirmCancelBtn" class="px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
+        <button id="confirmOkBtn" class="px-3.5 py-1.5 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAnalytics, isSupported } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
+    import {
+      getAuth, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence, browserSessionPersistence,
+      createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail,
+      updateProfile, GoogleAuthProvider, signInWithPopup, RecaptchaVerifier, signInWithPhoneNumber
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const FALLBACK_FIREBASE_CONFIG = {
+      apiKey: 'AIzaSyAzICJ6-183c2VzveCJangBxnWQkwSF5Qg',
+      authDomain: 'jira-taskbar.firebaseapp.com',
+      projectId: 'jira-taskbar',
+      storageBucket: 'jira-taskbar.firebasestorage.app',
+      messagingSenderId: '380386634871',
+      appId: '1:380386634871:web:0e312f3fe51b086c896a72',
+      measurementId: 'G-XMD2NZCFS1'
+    };
+
+    const runtimeEnv = (() => {
+      try {
+        return typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
+      } catch (err) {
+        return {};
+      }
+    })();
+
+    const windowConfig = typeof window !== 'undefined' ? (window.__TASKSPHERE_FIREBASE_CONFIG__ || {}) : {};
+    const FIREBASE_CONFIG = {
+      apiKey: windowConfig.apiKey || runtimeEnv.VITE_FIREBASE_API_KEY || FALLBACK_FIREBASE_CONFIG.apiKey,
+      authDomain: windowConfig.authDomain || runtimeEnv.VITE_FIREBASE_AUTH_DOMAIN || FALLBACK_FIREBASE_CONFIG.authDomain,
+      projectId: windowConfig.projectId || runtimeEnv.VITE_FIREBASE_PROJECT_ID || FALLBACK_FIREBASE_CONFIG.projectId,
+      storageBucket: windowConfig.storageBucket || runtimeEnv.VITE_FIREBASE_STORAGE_BUCKET || FALLBACK_FIREBASE_CONFIG.storageBucket,
+      messagingSenderId: windowConfig.messagingSenderId || runtimeEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || FALLBACK_FIREBASE_CONFIG.messagingSenderId,
+      appId: windowConfig.appId || runtimeEnv.VITE_FIREBASE_APP_ID || FALLBACK_FIREBASE_CONFIG.appId,
+      measurementId: windowConfig.measurementId || runtimeEnv.VITE_FIREBASE_MEASUREMENT_ID || FALLBACK_FIREBASE_CONFIG.measurementId
+    };
+
+    const FIREBASE_READY = !!FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith('PASTE');
+
+    const COLUMNS = [
+      { id: 'open', title: 'Open', color: 'border-t-blue-500', badge: 'bg-blue-100 text-blue-800' },
+      { id: 'in_progress', title: 'In Progress', color: 'border-t-amber-500', badge: 'bg-amber-100 text-amber-800' },
+      { id: 'pending', title: 'Pending', color: 'border-t-purple-500', badge: 'bg-purple-100 text-purple-800' },
+      { id: 'reopened', title: 'Reopened', color: 'border-t-rose-500', badge: 'bg-rose-100 text-rose-800' },
+      { id: 'in_testing', title: 'In Testing', color: 'border-t-indigo-500', badge: 'bg-indigo-100 text-indigo-800' },
+      { id: 'completed', title: 'Completed', color: 'border-t-emerald-500', badge: 'bg-emerald-100 text-emerald-800' }
+    ];
+
+    const PRIORITY_META = {
+      'Highest': { icon: 'fa-angles-up', textClass: 'text-red-600', badgeClass: 'bg-red-50 text-red-700 border-red-200' },
+      'High': { icon: 'fa-angle-up', textClass: 'text-orange-600', badgeClass: 'bg-orange-50 text-orange-700 border-orange-200' },
+      'Medium': { icon: 'fa-equals', textClass: 'text-amber-600', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200' },
+      'Low': { icon: 'fa-angle-down', textClass: 'text-emerald-600', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
+    };
+
+    const TYPE_META = {
+      'Task': { icon: 'fa-square-check', class: 'text-blue-600' },
+      'Bug': { icon: 'fa-circle-dot', class: 'text-red-600' },
+      'Story': { icon: 'fa-bookmark', class: 'text-green-600' },
+      'Improvement': { icon: 'fa-bolt', class: 'text-purple-600' }
+    };
+
+    const AVATAR_PALETTES = ['bg-blue-600', 'bg-emerald-600', 'bg-purple-600', 'bg-indigo-600', 'bg-rose-600', 'bg-amber-600', 'bg-teal-600'];
+    function getUserColor(name) {
+      if (!name || name === 'Unassigned') return 'bg-gray-400';
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      return AVATAR_PALETTES[Math.abs(hash) % AVATAR_PALETTES.length];
+    }
+
+    let registeredUsers = [];
+    let currentUser = null;
+    let authMode = 'login';
+    let tasks = [];
+    let activeFilter = { search: '', assignee: 'ALL', priority: 'ALL' };
+    let activeDetailTaskId = null;
+    let draggedTaskId = null;
+
+    let db = null;
+    let auth = null;
+    let isCloudReady = false;
+
+    // LocalStorage Fallback helper
+    const STORAGE_KEY = 'tasksphere_local_tasks_v1';
+    function loadLocalTasks() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      // Default sample tasks if empty
+      return [
+        {
+          id: 'task_demo_1',
+          key: 'TSP-101',
+          summary: 'Setup Firebase Authentication and Firestore rules',
+          description: 'Configure email/password, Google auth and secure security rules.',
+          type: 'Task',
+          status: 'open',
+          priority: 'High',
+          assignee: 'Team Contributor',
+          points: 5,
+          dueDate: '',
+          createdAt: 'Nov 11',
+          createdBy: 'System',
+          comments: []
+        },
+        {
+          id: 'task_demo_2',
+          key: 'TSP-102',
+          summary: 'Build drag-and-drop Kanban board columns',
+          description: 'Implement HTML5 drag and drop handlers across all status columns.',
+          type: 'Story',
+          status: 'in_progress',
+          priority: 'Highest',
+          assignee: 'Team Contributor',
+          points: 8,
+          dueDate: '',
+          createdAt: 'Nov 11',
+          createdBy: 'System',
+          comments: []
+        }
+      ];
+    }
+
+    function saveLocalTasks() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+      } catch (e) {}
+    }
+
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      const toastIcon = document.getElementById('toastIcon');
+
+      toastMsg.innerText = message;
+      if (type === 'success') {
+        toastIcon.className = 'fa-solid fa-circle-check text-green-400';
+      } else if (type === 'error') {
+        toastIcon.className = 'fa-solid fa-circle-exclamation text-red-400';
+      } else {
+        toastIcon.className = 'fa-solid fa-circle-info text-blue-400';
+      }
+
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 2800);
+    }
+
+    function showConfirmModal(title, message, onConfirm) {
+      const modal = document.getElementById('customConfirmModal');
+      const titleEl = document.getElementById('confirmTitle');
+      const msgEl = document.getElementById('confirmMessage');
+      const okBtn = document.getElementById('confirmOkBtn');
+      const cancelBtn = document.getElementById('confirmCancelBtn');
+
+      titleEl.innerText = title;
+      msgEl.innerText = message;
+      modal.classList.remove('hidden');
+
+      const handleOk = () => {
+        modal.classList.add('hidden');
+        okBtn.removeEventListener('click', handleOk);
+        cancelBtn.removeEventListener('click', handleCancel);
+        onConfirm();
+      };
+
+      const handleCancel = () => {
+        modal.classList.add('hidden');
+        okBtn.removeEventListener('click', handleOk);
+        cancelBtn.removeEventListener('click', handleCancel);
+      };
+
+      okBtn.addEventListener('click', handleOk);
+      cancelBtn.addEventListener('click', handleCancel);
+    }
+
+    function updateAssigneeDropdowns() {
+      const createSelect = document.getElementById('issueAssignee');
+      const detailSelect = document.getElementById('detailAssigneeSelect');
+      const filterSelect = document.getElementById('assigneeFilter');
+
+      const uniqueAssignees = new Set(['Unassigned']);
+      if (currentUser && currentUser.name) uniqueAssignees.add(currentUser.name);
+      registeredUsers.forEach(u => uniqueAssignees.add(u.name));
+      tasks.forEach(t => { if (t.assignee) uniqueAssignees.add(t.assignee); });
+
+      const list = Array.from(uniqueAssignees);
+
+      if (createSelect) {
+        const curVal = createSelect.value;
+        createSelect.innerHTML = list.map(name => `
+          <option value="${name}" ${currentUser && currentUser.name === name ? 'selected' : ''}>${name}</option>
+        `).join('');
+        if (curVal && list.includes(curVal)) createSelect.value = curVal;
+      }
+
+      if (detailSelect) {
+        const curVal = detailSelect.value;
+        detailSelect.innerHTML = list.map(name => `<option value="${name}">${name}</option>`).join('');
+        if (curVal && list.includes(curVal)) detailSelect.value = curVal;
+      }
+
+      if (filterSelect) {
+        const curFilter = filterSelect.value;
+        filterSelect.innerHTML = `<option value="ALL">All Assignees</option>` + list.map(name => `<option value="${name}">${name}</option>`).join('');
+        if (curFilter && list.includes(curFilter)) filterSelect.value = curFilter;
+      }
+    }
+
+    function renderBoardSkeleton() {
+      const container = document.getElementById('boardColumnsContainer');
+      container.innerHTML = '';
+
+      COLUMNS.forEach(col => {
+        const colDiv = document.createElement('div');
+        colDiv.className = 'kanban-col flex flex-col h-full bg-[#EBECF0] rounded-lg border border-jira-border shadow-xs flex-shrink-0';
+        colDiv.setAttribute('data-status', col.id);
+
+        colDiv.innerHTML = `
+          <div class="p-3 border-t-4 ${col.color} border-b border-gray-300 flex items-center justify-between bg-white rounded-t-lg">
+            <div class="flex items-center space-x-2">
+              <h3 class="font-bold text-xs uppercase tracking-wider text-gray-700">${col.title}</h3>
+              <span id="count-${col.id}" class="text-[11px] font-bold px-2 py-0.5 rounded-full ${col.badge}">0</span>
+            </div>
+            <button class="text-gray-400 hover:text-gray-600 p-1 add-task-in-col" data-col="${col.id}" title="Quick add in ${col.title}">
+              <i class="fa-solid fa-plus text-xs"></i>
+            </button>
+          </div>
+          <div id="col-list-${col.id}" class="column-drop-zone p-2 flex-1 overflow-y-auto space-y-2.5 transition-colors duration-150"></div>
+        `;
+
+        container.appendChild(colDiv);
+
+        const dropZone = colDiv.querySelector('.column-drop-zone');
+        dropZone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+          if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          dropZone.classList.remove('drag-over');
+          if (draggedTaskId) {
+            updateTaskStatus(draggedTaskId, col.id);
+            draggedTaskId = null;
+          }
+        });
+
+        colDiv.querySelector('.add-task-in-col').addEventListener('click', () => {
+          document.getElementById('issueStatus').value = col.id;
+          openCreateModal();
+        });
+      });
+    }
+
+    function getFilteredTasks() {
+      return tasks.filter(task => {
+        const matchesSearch = 
+          !activeFilter.search ||
+          task.summary?.toLowerCase().includes(activeFilter.search.toLowerCase()) ||
+          task.key?.toLowerCase().includes(activeFilter.search.toLowerCase()) ||
+          task.description?.toLowerCase().includes(activeFilter.search.toLowerCase());
+
+        const matchesAssignee = 
+          activeFilter.assignee === 'ALL' ||
+          task.assignee === activeFilter.assignee;
+
+        const matchesPriority = 
+          activeFilter.priority === 'ALL' ||
+          task.priority === activeFilter.priority;
+
+        return matchesSearch && matchesAssignee && matchesPriority;
+      });
+    }
+
+    function renderTasks() {
+      const filtered = getFilteredTasks();
+      updateAssigneeDropdowns();
+
+      COLUMNS.forEach(col => {
+        const colContainer = document.getElementById(`col-list-${col.id}`);
+        const countBadge = document.getElementById(`count-${col.id}`);
+        if (!colContainer) return;
+
+        const colTasks = filtered.filter(t => t.status === col.id);
+        countBadge.innerText = colTasks.length;
+        colContainer.innerHTML = '';
+
+        if (colTasks.length === 0) {
+          colContainer.innerHTML = `
+            <div class="h-24 flex flex-col items-center justify-center border border-dashed border-gray-300 rounded text-[11px] text-gray-400 font-medium px-2 text-center">
+              <span>No tasks in ${col.title}</span>
+              <button class="mt-1 text-jira-blue hover:underline text-[10px] font-semibold quick-col-create" data-status="${col.id}">+ Create Issue</button>
+            </div>
+          `;
+          colContainer.querySelector('.quick-col-create')?.addEventListener('click', () => {
+            document.getElementById('issueStatus').value = col.id;
+            openCreateModal();
+          });
+          return;
+        }
+
+        colTasks.forEach(task => {
+          const card = document.createElement('div');
+          card.className = 'task-card bg-white p-3 rounded-md border border-jira-border shadow-xs hover:shadow-md transition-shadow select-none';
+          card.setAttribute('draggable', 'true');
+          card.setAttribute('data-id', task.id);
+
+          const typeMeta = TYPE_META[task.type] || TYPE_META['Task'];
+          const priorityMeta = PRIORITY_META[task.priority] || PRIORITY_META['Medium'];
+          
+          const assigneeUser = registeredUsers.find(u => u.name === task.assignee);
+          const assigneePhoto = assigneeUser ? assigneeUser.photoURL : '';
+          
+          const initials = task.assignee && task.assignee !== 'Unassigned' 
+            ? task.assignee.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() 
+            : 'UN';
+          const avatarBg = getUserColor(task.assignee);
+          const isAssignedToCurrent = currentUser && currentUser.name === task.assignee;
+
+          const avatarContent = assigneePhoto 
+            ? `<img src="${assigneePhoto}" class="w-full h-full rounded-full object-cover" onerror="this.replaceWith(this.dataset.initials || '${initials}')" data-initials="${initials}">` 
+            : initials;
+
+          card.innerHTML = `
+            <div class="flex items-start justify-between gap-2 mb-1.5">
+              <span class="text-[11px] font-mono font-bold text-gray-500">${task.key || 'TASK'}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded border font-semibold flex items-center gap-1 ${priorityMeta.badgeClass}">
+                <i class="fa-solid ${priorityMeta.icon} text-[9px]"></i> ${task.priority}
+              </span>
+            </div>
+            <p class="text-xs font-semibold text-gray-900 leading-snug mb-2.5 line-clamp-2">${task.summary}</p>
+            <div class="flex items-center justify-between text-xs pt-1.5 border-t border-gray-100">
+              <div class="flex items-center space-x-2">
+                <i class="fa-solid ${typeMeta.icon} ${typeMeta.class}" title="${task.type}"></i>
+                ${task.points ? `<span class="bg-gray-100 text-gray-600 text-[10px] px-1.5 py-0.2 rounded font-bold" title="Story Points">${task.points} pts</span>` : ''}
+                ${task.comments && task.comments.length > 0 ? `<span class="text-gray-400 text-[11px] flex items-center gap-1"><i class="fa-regular fa-comment"></i> ${task.comments.length}</span>` : ''}
+              </div>
+              <div class="flex items-center gap-1">
+                ${isAssignedToCurrent ? `<span class="text-[9px] bg-blue-100 text-blue-700 font-bold px-1 rounded">YOU</span>` : ''}
+                <div class="w-6 h-6 rounded-full ${assigneePhoto ? '' : avatarBg} text-white flex items-center justify-center text-[10px] font-bold shadow-xs overflow-hidden" title="${task.assignee || 'Unassigned'}">
+                  ${avatarContent}
+                </div>
+              </div>
+            </div>
+          `;
+
+          card.addEventListener('click', () => openTaskDetail(task.id));
+          card.addEventListener('dragstart', (e) => {
+            draggedTaskId = task.id;
+            card.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', task.id);
+            e.dataTransfer.effectAllowed = 'move';
+          });
+          card.addEventListener('dragend', () => {
+            card.classList.remove('dragging');
+            draggedTaskId = null;
+          });
+
+          colContainer.appendChild(card);
+        });
+      });
+    }
+
+    async function updateTaskStatus(taskId, newStatus) {
+      const taskIndex = tasks.findIndex(t => t.id === taskId);
+      if (taskIndex === -1) return;
+      if (tasks[taskIndex].status === newStatus) return;
+
+      tasks[taskIndex].status = newStatus;
+      saveLocalTasks();
+      renderTasks();
+
+      if (isCloudReady && db) {
+        try {
+          const taskDocRef = doc(db, 'tasks', taskId);
+          await setDoc(taskDocRef, {
+            ...tasks[taskIndex],
+            status: newStatus,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+          showToast(`Moved to ${newStatus.replace('_', ' ').toUpperCase()}`);
+        } catch (err) {
+          console.error('Error updating status in cloud:', err);
+          showToast('Updated locally (Cloud sync pending)', 'info');
+        }
+      } else {
+        showToast(`Moved to ${newStatus.replace('_', ' ').toUpperCase()}`);
+      }
+    }
+
+    async function createNewTask(taskData) {
+      const nextNum = tasks.length + 101;
+      const taskId = 'task_' + Date.now();
+      const newTask = {
+        id: taskId,
+        key: `TSP-${nextNum}`,
+        summary: taskData.summary,
+        description: taskData.description || '',
+        type: taskData.type || 'Task',
+        status: taskData.status || 'open',
+        priority: taskData.priority || 'Medium',
+        assignee: taskData.assignee || (currentUser ? currentUser.name : 'Unassigned'),
+        points: Number(taskData.points) || 1,
+        dueDate: taskData.dueDate || '',
+        createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        createdBy: currentUser ? currentUser.name : 'Real User',
+        comments: []
+      };
+
+      tasks.unshift(newTask);
+      saveLocalTasks();
+      renderTasks();
+      closeCreateModal();
+
+      if (isCloudReady && db) {
+        try {
+          const taskDocRef = doc(db, 'tasks', taskId);
+          await setDoc(taskDocRef, newTask);
+          showToast(`Created ${newTask.key}`);
+        } catch (err) {
+          console.error("Cloud write failed:", err);
+          showToast("Saved locally", "info");
+        }
+      } else {
+        showToast(`Created ${newTask.key}!`);
+      }
+    }
+
+    function openTaskDetail(taskId) {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      activeDetailTaskId = taskId;
+      document.getElementById('detailKey').innerText = task.key;
+      document.getElementById('detailSummary').innerText = task.summary;
+      document.getElementById('detailDescriptionView').innerText = task.description || 'No detailed description provided.';
+      document.getElementById('detailDescriptionInput').value = task.description || '';
+      document.getElementById('detailDescriptionEditContainer').classList.add('hidden');
+      document.getElementById('detailDescriptionView').classList.remove('hidden');
+
+      const colInfo = COLUMNS.find(c => c.id === task.status) || COLUMNS[0];
+      const statusPill = document.getElementById('detailStatusPill');
+      statusPill.innerText = colInfo.title;
+      statusPill.className = `text-xs px-2.5 py-0.5 rounded-full font-semibold ${colInfo.badge} uppercase tracking-wide`;
+
+      document.getElementById('detailStatusSelect').value = task.status;
+      document.getElementById('detailPrioritySelect').value = task.priority;
+      
+      updateAssigneeDropdowns();
+      document.getElementById('detailAssigneeSelect').value = task.assignee || 'Unassigned';
+      
+      document.getElementById('detailPointsInput').value = task.points || 1;
+      document.getElementById('detailDueDateInput').value = task.dueDate || '';
+      document.getElementById('detailCreatedDate').innerText = task.createdAt || 'Just now';
+
+      document.getElementById('detailTypeBadge').innerText = task.type || 'Task';
+      renderCommentsList(task.comments || []);
+      document.getElementById('detailModal').classList.remove('hidden');
+    }
+
+    function renderCommentsList(comments) {
+      const container = document.getElementById('commentsList');
+      container.innerHTML = '';
+
+      if (!comments || comments.length === 0) {
+        container.innerHTML = `<p class="text-xs text-gray-400 italic">No notes or comments added yet.</p>`;
+        return;
+      }
+
+      comments.slice().reverse().forEach(c => {
+        const commentDiv = document.createElement('div');
+        commentDiv.className = 'bg-gray-50 border border-gray-200 rounded p-2.5 space-y-1 text-xs';
+        commentDiv.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-gray-800">${c.author}</span>
+            <span class="text-[10px] text-gray-400 font-mono">${c.date}</span>
+          </div>
+          <p class="text-gray-700 whitespace-pre-wrap">${c.text}</p>
+        `;
+        container.appendChild(commentDiv);
+      });
+    }
+
+    async function syncActiveDetailTask() {
+      if (!activeDetailTaskId) return;
+      const idx = tasks.findIndex(t => t.id === activeDetailTaskId);
+      if (idx === -1) return;
+
+      const updated = {
+        ...tasks[idx],
+        status: document.getElementById('detailStatusSelect').value,
+        priority: document.getElementById('detailPrioritySelect').value,
+        assignee: document.getElementById('detailAssigneeSelect').value,
+        points: Number(document.getElementById('detailPointsInput').value) || 1,
+        dueDate: document.getElementById('detailDueDateInput').value,
+        description: document.getElementById('detailDescriptionInput').value
+      };
+
+      tasks[idx] = updated;
+      saveLocalTasks();
+      renderTasks();
+
+      const colInfo = COLUMNS.find(c => c.id === updated.status) || COLUMNS[0];
+      const statusPill = document.getElementById('detailStatusPill');
+      statusPill.innerText = colInfo.title;
+      statusPill.className = `text-xs px-2.5 py-0.5 rounded-full font-semibold ${colInfo.badge} uppercase tracking-wide`;
+
+      if (isCloudReady && db) {
+        try {
+          const taskDocRef = doc(db, 'tasks', activeDetailTaskId);
+          await setDoc(taskDocRef, updated, { merge: true });
+        } catch (err) {
+          console.error("Save detail cloud error:", err);
+        }
+      }
+    }
+
+    function openCreateModal() {
+      document.getElementById('createIssueForm').reset();
+      updateAssigneeDropdowns();
+      if (currentUser && document.getElementById('issueAssignee')) {
+        document.getElementById('issueAssignee').value = currentUser.name;
+      }
+      document.getElementById('createIssueModal').classList.remove('hidden');
+      document.getElementById('issueSummary').focus();
+    }
+
+    function closeCreateModal() {
+      document.getElementById('createIssueModal').classList.add('hidden');
+    }
+
+    function closeDetailModal() {
+      document.getElementById('detailModal').classList.add('hidden');
+      activeDetailTaskId = null;
+    }
+
+    // ==================== REAL AUTHENTICATION ====================
+    const el = id => document.getElementById(id);
+    let authMethod = 'email', confirmationResult = null, recaptchaVerifier = null;
+    let resendTimer = null, verifyPoll = null, suppressAuthEvent = false, unsubTasks = null, unsubUsers = null;
+
+    function showMsg(text, type = 'error') {
+      const m = el('authMsg');
+      m.textContent = text;
+      m.className = 'text-xs rounded-md px-3 py-2 mb-4 leading-relaxed ' +
+        (type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+         type === 'info' ? 'bg-blue-50 text-blue-800 border border-blue-200' : 'bg-red-50 text-red-700 border border-red-200');
+    }
+    function clearMsg() { el('authMsg').className = 'hidden'; }
+
+    function friendlyError(err) {
+      const map = {
+        'auth/invalid-credential': 'Incorrect email or password.',
+        'auth/user-not-found': 'No account found with this email.',
+        'auth/wrong-password': 'Incorrect email or password.',
+        'auth/email-already-in-use': 'An account with this email already exists. Try logging in.',
+        'auth/invalid-email': 'Please enter a valid email address.',
+        'auth/weak-password': 'Password is too weak. Use at least 8 characters.',
+        'auth/too-many-requests': 'Too many attempts. Please wait a few minutes and try again.',
+        'auth/internal-error': 'Phone sign-in is not configured correctly in Google Cloud Console.',
+        'auth/invalid-phone-number': 'That phone number is not valid. Please remove the leading zero if entered.',
+        'auth/invalid-verification-code': 'Incorrect OTP. Please check and try again.',
+        'auth/code-expired': 'OTP expired. Please request a new one.',
+        'auth/captcha-check-failed': 'reCAPTCHA check failed. Refresh and try again.',
+        'auth/quota-exceeded': 'SMS quota exceeded on free plan. Use email login instead.',
+        'auth/billing-not-enabled': 'Phone sign-in needs billing enabled or configured test phone number.',
+        'auth/operation-not-allowed': 'Phone Auth is disabled in Firebase Console > Authentication.',
+        'auth/unauthorized-domain': 'This domain is not authorised in Firebase Console.',
+        'auth/network-request-failed': 'Network error. Check your internet connection.'
+      };
+      return map[err.code] || err.message || 'Something went wrong. Please try again.';
+    }
+
+    function setBusy(btnId, busy, label) {
+      const b = el(btnId);
+      if (!b.dataset.label) b.dataset.label = b.textContent;
+      b.disabled = busy;
+      b.innerHTML = busy ? '<i class="fa-solid fa-circle-notch fa-spin"></i> ' + (label || 'Please wait...') : b.dataset.label;
+    }
+
+    function showPanel(panel) {
+      const ids = { email: 'emailForm', phone: 'phoneForm', otp: 'otpForm', profile: 'profileForm', verify: 'verifyPanel' };
+      Object.entries(ids).forEach(([k, id]) => el(id).classList.toggle('hidden', k !== panel));
+      document.querySelectorAll('.auth-main').forEach(n => n.classList.toggle('hidden', !['email', 'phone'].includes(panel)));
+      el('authFooter').classList.toggle('hidden', panel !== 'email');
+      const titles = { phone: 'Continue with your phone', otp: 'Enter verification code', profile: 'Almost done', verify: 'Verify your email' };
+      if (titles[panel]) el('authCardTitle').textContent = titles[panel];
+      else setAuthMode(authMode);
+      clearMsg();
+    }
+
+    function setAuthMode(mode) {
+      authMode = mode;
+      const signup = mode === 'signup', forgot = mode === 'forgot';
+      el('authCardTitle').textContent = signup ? 'Create your account' : forgot ? 'Reset your password' : 'Log in to continue';
+      el('nameWrap').classList.toggle('hidden', !signup);
+      el('confirmWrap').classList.toggle('hidden', !signup);
+      el('pwWrap').classList.toggle('hidden', forgot);
+      el('loginOptionsContainer').classList.toggle('hidden', signup || forgot);
+      el('passwordInput').autocomplete = signup ? 'new-password' : 'current-password';
+      const btn = el('emailSubmitBtn');
+      btn.dataset.label = signup ? 'Sign up' : forgot ? 'Send reset link' : 'Log in';
+      btn.textContent = btn.dataset.label;
+      el('switchModeLink').textContent = signup || forgot ? 'Already have an account? Log in' : 'Create an account';
+    }
+
+    function setMethod(method) {
+      authMethod = method;
+      document.querySelectorAll('.method-tab').forEach(t => t.classList.toggle('active', t.dataset.method === method));
+      showPanel(method);
+    }
+
+    async function applyPersistence() {
+      try {
+        await setPersistence(auth, el('rememberMeCheckbox').checked ? browserLocalPersistence : browserSessionPersistence);
+      } catch (e) {}
+    }
+
+    async function handleEmailSubmit(e) {
+      e.preventDefault(); clearMsg();
+      if (!FIREBASE_READY) return showMsg('Firebase is not configured.');
+      const email = el('emailInput').value.trim(), password = el('passwordInput').value;
+      if (!/^\S+@\S+\.\S+$/.test(email)) return showMsg('Please enter a valid email address.');
+      try {
+        if (authMode === 'forgot') {
+          setBusy('emailSubmitBtn', true);
+          await sendPasswordResetEmail(auth, email);
+          showMsg('If an account exists for ' + email + ', a reset link has been sent.', 'success');
+        } else if (authMode === 'signup') {
+          const name = el('nameInput').value.trim();
+          if (name.length < 2) return showMsg('Please enter your full name.');
+          if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) return showMsg('Password must be 8+ characters with letters and numbers.');
+          if (password !== el('confirmInput').value) return showMsg('Passwords do not match.');
+          setBusy('emailSubmitBtn', true, 'Creating account...');
+          suppressAuthEvent = true;
+          await applyPersistence();
+          const cred = await createUserWithEmailAndPassword(auth, email, password);
+          await updateProfile(cred.user, { displayName: name });
+          await sendEmailVerification(cred.user);
+          suppressAuthEvent = false;
+          await handleUser(auth.currentUser);
+        } else {
+          if (!password) return showMsg('Please enter your password.');
+          setBusy('emailSubmitBtn', true, 'Logging in...');
+          await applyPersistence();
+          await signInWithEmailAndPassword(auth, email, password);
+        }
+      } catch (err) { 
+        showMsg(friendlyError(err)); 
+      } finally { 
+        suppressAuthEvent = false; 
+        setBusy('emailSubmitBtn', false); 
+      }
+    }
+
+    function buildPhone() {
+      const cc = el('countryCode').value;
+      const raw = el('phoneInput').value.replace(/\D/g, '').replace(/^0+/, '');
+      if (cc === '+91' && !/^[6-9]\d{9}$/.test(raw)) {
+        throw new Error('Enter a valid 10-digit mobile number.');
+      }
+      if (raw.length < 6 || raw.length > 15) {
+        throw new Error('Enter a valid mobile number.');
+      }
+      return cc + raw;
+    }
+
+    function freshRecaptcha() {
+      if (recaptchaVerifier) {
+        try { recaptchaVerifier.clear(); } catch (_) {}
+        recaptchaVerifier = null;
+      }
+      const container = el('recaptcha-container');
+      if (container) container.innerHTML = '';
+
+      recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+        callback: () => {},
+        'expired-callback': () => {
+          showMsg('reCAPTCHA expired. Please try again.');
+        }
+      });
+      return recaptchaVerifier;
+    }
+
+    function startResendTimer() {
+      let s = 30; 
+      const b = el('resendOtpBtn'); 
+      b.disabled = true;
+      clearInterval(resendTimer);
+      resendTimer = setInterval(() => {
+        s--; 
+        b.textContent = s > 0 ? 'Resend in ' + s + 's' : 'Resend OTP';
+        if (s <= 0) { 
+          clearInterval(resendTimer); 
+          b.disabled = false; 
+        }
+      }, 1000);
+      b.textContent = 'Resend in 30s';
+    }
+
+    async function sendOtp(e) {
+      if (e) e.preventDefault(); 
+      clearMsg();
+      if (!FIREBASE_READY) return showMsg('Firebase is not configured.');
+
+      try {
+        const phone = buildPhone();
+        setBusy('sendOtpBtn', true, 'Sending OTP...');
+        await applyPersistence();
+        const verifier = freshRecaptcha();
+        confirmationResult = await signInWithPhoneNumber(auth, phone, verifier);
+        el('otpHint').textContent = 'Code sent to ' + phone;
+        showPanel('otp'); 
+        el('otpInput').value = ''; 
+        el('otpInput').focus();
+        startResendTimer();
+      } catch (err) {
+        console.error('Phone Auth error:', err);
+        showMsg(friendlyError(err));
+        if (recaptchaVerifier) {
+          try { recaptchaVerifier.clear(); } catch (_) {}
+          recaptchaVerifier = null;
+        }
+      } finally { 
+        setBusy('sendOtpBtn', false); 
+      }
+    }
+
+    async function verifyOtp(e) {
+      e.preventDefault(); 
+      clearMsg();
+      const code = el('otpInput').value.trim();
+      if (!/^\d{6}$/.test(code)) return showMsg('Enter the 6-digit code.');
+      if (!confirmationResult) return showMsg('Session expired. Please request OTP again.');
+
+      try {
+        setBusy('verifyOtpBtn', true, 'Verifying...');
+        await confirmationResult.confirm(code);
+      } catch (err) { 
+        showMsg(friendlyError(err)); 
+      } finally { 
+        setBusy('verifyOtpBtn', false); 
+      }
+    }
+
+    async function googleLogin() {
+      clearMsg();
+      if (!FIREBASE_READY) return showMsg('Firebase is not configured.');
+      try { 
+        await applyPersistence(); 
+        await signInWithPopup(auth, new GoogleAuthProvider()); 
+      } catch (err) { 
+        if (!['auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(err.code)) {
+          showMsg(friendlyError(err)); 
+        }
+      }
+    }
+
+    const needsEmailVerification = u => u.providerData.some(p => p.providerId === 'password') && !u.emailVerified;
+
+    async function handleUser(user) {
+      clearInterval(verifyPoll);
+      if (!user) return leaveApp();
+      el('authBoot').classList.add('hidden'); 
+      el('authCard').classList.remove('hidden');
+      el('authScreenModal').classList.remove('hidden');
+
+      if (needsEmailVerification(user)) {
+        el('verifyEmailText').textContent = user.email;
+        showPanel('verify');
+        verifyPoll = setInterval(checkVerified, 4000);
+        return;
+      }
+      if (!user.displayName) { 
+        showPanel('profile'); 
+        el('profileName').focus(); 
+        return; 
+      }
+      await enterApp(user);
+    }
+
+    async function checkVerified(manual) {
+      const u = auth.currentUser; 
+      if (!u) return;
+      await u.reload();
+      if (u.emailVerified) { 
+        await u.getIdToken(true); 
+        clearInterval(verifyPoll); 
+        await handleUser(auth.currentUser); 
+      } else if (manual === true) {
+        showMsg('Email not verified yet. Check your inbox.', 'info');
+      }
+    }
+
+    async function enterApp(user) {
+      const name = user.displayName || user.email?.split('@')[0] || 'Team Member';
+      const photoURL = user.photoURL || '';
+      
+      currentUser = { 
+        uid: user.uid, 
+        name, 
+        email: user.email || '', 
+        phone: user.phoneNumber || '', 
+        photoURL,
+        role: 'Team Contributor', 
+        color: getUserColor(name) 
+      };
+      
+      el('currentUserName').innerText = name;
+      el('currentUserRole').innerText = user.email || user.phoneNumber || '';
+      
+      const av = el('currentUserAvatar');
+      const initials = name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+      
+      if (photoURL) {
+        av.innerHTML = `<img src="${photoURL}" class="w-full h-full rounded-full object-cover" alt="${name}" onerror="this.replaceWith(this.dataset.initials || '${initials}')" data-initials="${initials}">`;
+        av.className = 'w-8 h-8 rounded-full overflow-hidden shadow-sm flex items-center justify-center flex-shrink-0';
+      } else {
+        av.innerText = initials;
+        av.className = 'w-8 h-8 rounded-full ' + currentUser.color + ' text-white flex items-center justify-center text-xs font-bold shadow-sm flex-shrink-0';
+      }
+      
+      el('authScreenModal').classList.add('hidden');
+
+      try {
+        await setDoc(doc(db, 'users', user.uid), {
+          uid: user.uid, 
+          name, 
+          email: user.email || '', 
+          phone: user.phoneNumber || '', 
+          photoURL,
+          lastLoginAt: serverTimestamp()
+        }, { merge: true });
+      } catch (err) {}
+
+      startListeners();
+      showToast('Welcome, ' + name);
+    }
+
+    function startListeners() {
+      if (unsubTasks) return;
+      const syncStatusEl = el('syncStatus'), syncTextEl = el('syncText');
+      isCloudReady = true;
+
+      unsubUsers = onSnapshot(collection(db, 'users'), snap => {
+        registeredUsers = snap.docs.map(d => d.data());
+        updateAssigneeDropdowns();
+        renderTasks();
+      }, err => console.error('Users sync error:', err));
+
+      unsubTasks = onSnapshot(collection(db, 'tasks'), snap => {
+        const cloudTasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (cloudTasks.length > 0) {
+          tasks = cloudTasks;
+          saveLocalTasks();
+        }
+        syncStatusEl.className = 'flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
+        syncTextEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Live Cloud Sync';
+        renderTasks();
+      }, err => {
+        console.warn('Cloud tasks sync error, using local fallback:', err);
+        syncStatusEl.className = 'flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200';
+        syncTextEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-blue-500"></span> Local Storage Mode';
+        tasks = loadLocalTasks();
+        renderTasks();
+      });
+    }
+
+    function leaveApp() {
+      if (unsubTasks) unsubTasks(); 
+      if (unsubUsers) unsubUsers();
+      unsubTasks = unsubUsers = null; 
+      isCloudReady = false;
+      currentUser = null; 
+      confirmationResult = null;
+      clearInterval(verifyPoll); 
+      clearInterval(resendTimer);
+      closeDetailModal(); 
+      closeCreateModal(); 
+
+      tasks = loadLocalTasks();
+      renderTasks();
+
+      el('syncStatus').className = 'flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200';
+      el('syncText').textContent = 'Signed out';
+      ['emailInput', 'passwordInput', 'confirmInput', 'nameInput', 'phoneInput', 'otpInput'].forEach(i => { if(el(i)) el(i).value = ''; });
+      el('authBoot').classList.add('hidden'); 
+      el('authCard').classList.remove('hidden');
+      el('authScreenModal').classList.remove('hidden');
+      authMode = 'login'; 
+      setMethod('email');
+    }
+
+    async function saveProfileName(e) {
+      e.preventDefault(); 
+      clearMsg();
+      const name = el('profileName').value.trim();
+      if (name.length < 2) return showMsg('Please enter your full name.');
+      try {
+        setBusy('profileBtn', true);
+        await updateProfile(auth.currentUser, { displayName: name });
+        await handleUser(auth.currentUser);
+      } catch (err) { 
+        showMsg(friendlyError(err)); 
+      } finally { 
+        setBusy('profileBtn', false); 
+      }
+    }
+
+    function initAuth() {
+      el('emailForm').addEventListener('submit', handleEmailSubmit);
+      el('phoneForm').addEventListener('submit', sendOtp);
+      el('otpForm').addEventListener('submit', verifyOtp);
+      el('profileForm').addEventListener('submit', saveProfileName);
+      el('googleBtn').addEventListener('click', googleLogin);
+      document.querySelectorAll('.method-tab').forEach(t => t.addEventListener('click', () => setMethod(t.dataset.method)));
+      el('switchModeLink').addEventListener('click', () => { setAuthMode(authMode === 'login' ? 'signup' : 'login'); clearMsg(); });
+      el('forgotLink').addEventListener('click', () => { setAuthMode('forgot'); clearMsg(); });
+      el('resendOtpBtn').addEventListener('click', (e) => { e.preventDefault(); sendOtp(e); });
+      el('changeNumberBtn').addEventListener('click', () => setMethod('phone'));
+      el('verifiedBtn').addEventListener('click', () => checkVerified(true));
+      el('resendVerifyBtn').addEventListener('click', async () => {
+        try { 
+          await sendEmailVerification(auth.currentUser); 
+          showMsg('Verification email sent again.', 'success'); 
+        } catch (err) { 
+          showMsg(friendlyError(err)); 
+        }
+      });
+      el('verifyLogoutBtn').addEventListener('click', () => signOut(auth));
+      el('logoutBtn').addEventListener('click', () => signOut(auth));
+      el('togglePw').addEventListener('click', () => {
+        const p = el('passwordInput'); 
+        p.type = p.type === 'password' ? 'text' : 'password';
+      });
+      setAuthMode('login');
+
+      if (!FIREBASE_READY) {
+        el('authBoot').classList.add('hidden'); 
+        el('authCard').classList.remove('hidden');
+        el('cfgWarning').classList.remove('hidden');
+        el('syncText').textContent = 'Not configured';
+        return;
+      }
+
+      const app = initializeApp(FIREBASE_CONFIG);
+      isSupported().then(ok => { if (ok && FIREBASE_CONFIG.measurementId) getAnalytics(app); }).catch(() => {});
+      auth = getAuth(app); 
+      db = getFirestore(app);
+      onAuthStateChanged(auth, user => { if (!suppressAuthEvent) handleUser(user); });
+    }
+
+    // ==================== EVENT LISTENERS ====================
+    window.addEventListener('DOMContentLoaded', () => {
+      // Load initial tasks from storage fallback immediately
+      tasks = loadLocalTasks();
+      renderBoardSkeleton();
+      renderTasks();
+      initAuth();
+
+      let myTasksOnly = false;
+      const myTasksBtn = document.getElementById('myTasksQuickFilter');
+      myTasksBtn.addEventListener('click', () => {
+        myTasksOnly = !myTasksOnly;
+        if (myTasksOnly && currentUser) {
+          activeFilter.assignee = currentUser.name;
+          document.getElementById('assigneeFilter').value = currentUser.name;
+          myTasksBtn.classList.add('bg-blue-100', 'text-jira-blue', 'font-bold');
+        } else {
+          activeFilter.assignee = 'ALL';
+          document.getElementById('assigneeFilter').value = 'ALL';
+          myTasksBtn.classList.remove('bg-blue-100', 'text-jira-blue', 'font-bold');
+        }
+        renderTasks();
+      });
+
+      document.getElementById('openCreateModalBtn').addEventListener('click', openCreateModal);
+      document.getElementById('closeCreateModalBtn').addEventListener('click', closeCreateModal);
+      document.getElementById('cancelCreateModalBtn').addEventListener('click', closeCreateModal);
+      document.getElementById('closeDetailModalBtn').addEventListener('click', closeDetailModal);
+
+      document.getElementById('createIssueForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const summary = document.getElementById('issueSummary').value.trim();
+        if (!summary) return;
+
+        createNewTask({
+          summary,
+          description: document.getElementById('issueDescription').value.trim(),
+          type: document.getElementById('issueType').value,
+          status: document.getElementById('issueStatus').value,
+          priority: document.getElementById('issuePriority').value,
+          assignee: document.getElementById('issueAssignee').value,
+          points: document.getElementById('issuePoints').value,
+          dueDate: document.getElementById('issueDueDate').value
+        });
+      });
+
+      document.getElementById('searchInput').addEventListener('input', (e) => {
+        activeFilter.search = e.target.value.trim();
+        renderTasks();
+      });
+
+      document.getElementById('assigneeFilter').addEventListener('change', (e) => {
+        activeFilter.assignee = e.target.value;
+        renderTasks();
+      });
+
+      document.getElementById('priorityFilter').addEventListener('change', (e) => {
+        activeFilter.priority = e.target.value;
+        renderTasks();
+      });
+
+      document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('assigneeFilter').value = 'ALL';
+        document.getElementById('priorityFilter').value = 'ALL';
+        myTasksBtn.classList.remove('bg-blue-100', 'text-jira-blue', 'font-bold');
+        myTasksOnly = false;
+        activeFilter = { search: '', assignee: 'ALL', priority: 'ALL' };
+        renderTasks();
+      });
+
+      ['detailStatusSelect', 'detailPrioritySelect', 'detailAssigneeSelect', 'detailPointsInput', 'detailDueDateInput'].forEach(id => {
+        document.getElementById(id).addEventListener('change', syncActiveDetailTask);
+      });
+
+      document.getElementById('editDescBtn').addEventListener('click', () => {
+        document.getElementById('detailDescriptionView').classList.add('hidden');
+        document.getElementById('detailDescriptionEditContainer').classList.remove('hidden');
+        document.getElementById('detailDescriptionInput').focus();
+      });
+
+      document.getElementById('cancelDescBtn').addEventListener('click', () => {
+        document.getElementById('detailDescriptionEditContainer').classList.add('hidden');
+        document.getElementById('detailDescriptionView').classList.remove('hidden');
+      });
+
+      document.getElementById('saveDescBtn').addEventListener('click', () => {
+        const newDesc = document.getElementById('detailDescriptionInput').value;
+        document.getElementById('detailDescriptionView').innerText = newDesc || 'No detailed description provided.';
+        document.getElementById('detailDescriptionEditContainer').classList.add('hidden');
+        document.getElementById('detailDescriptionView').classList.remove('hidden');
+        syncActiveDetailTask();
+        showToast("Description updated");
+      });
+
+      document.getElementById('addCommentBtn').addEventListener('click', async () => {
+        const commentBox = document.getElementById('newCommentInput');
+        const text = commentBox.value.trim();
+        if (!text || !activeDetailTaskId) return;
+
+        const idx = tasks.findIndex(t => t.id === activeDetailTaskId);
+        if (idx === -1) return;
+
+        const newComment = {
+          author: currentUser ? currentUser.name : 'Team Member',
+          text: text,
+          date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+        };
+
+        if (!tasks[idx].comments) tasks[idx].comments = [];
+        tasks[idx].comments.push(newComment);
+
+        commentBox.value = '';
+        saveLocalTasks();
+        renderCommentsList(tasks[idx].comments);
+        renderTasks();
+
+        if (isCloudReady && db) {
+          try {
+            const taskDocRef = doc(db, 'tasks', activeDetailTaskId);
+            await setDoc(taskDocRef, { comments: tasks[idx].comments }, { merge: true });
+          } catch (err) {
+            console.error("Comment cloud save error:", err);
+          }
+        }
+        showToast("Comment posted");
+      });
+
+      document.getElementById('deleteTaskBtn').addEventListener('click', () => {
+        if (!activeDetailTaskId) return;
+        const task = tasks.find(t => t.id === activeDetailTaskId);
+        if (!task) return;
+
+        showConfirmModal(
+          `Delete Issue ${task.key}?`,
+          `Are you sure you want to permanently delete "${task.summary}"? This action cannot be undone.`,
+          async () => {
+            const idToDelete = activeDetailTaskId;
+            tasks = tasks.filter(t => t.id !== idToDelete);
+            saveLocalTasks();
+            renderTasks();
+            closeDetailModal();
+
+            if (isCloudReady && db) {
+              try {
+                const taskDocRef = doc(db, 'tasks', idToDelete);
+                await deleteDoc(taskDocRef);
+                showToast(`Deleted ${task.key}`);
+              } catch (err) {
+                console.error("Error deleting from cloud:", err);
+                showToast("Deleted locally", "info");
+              }
+            } else {
+              showToast(`Deleted ${task.key}`);
+            }
+          }
+        );
+      });
+    });
+  </script>
+</body>
+</html>
