@@ -744,10 +744,10 @@
     function getFilteredTasks() {
       let visibleTasks = tasks;
 
-      // Data Isolation Rule: If not admin, only see tasks assigned to you or created by you
-      if (currentUser && currentUser.role !== 'admin') {
-        visibleTasks = tasks.filter(t => t.assignee === currentUser.name || t.createdBy === currentUser.name);
-      }
+      // Modified: All approved users can now see all tickets across the board
+      // if (currentUser && currentUser.role !== 'admin') {
+      //   visibleTasks = tasks.filter(t => t.assignee === currentUser.name || t.createdBy === currentUser.name);
+      // }
 
       return visibleTasks.filter(task => {
         const matchesSearch = 
